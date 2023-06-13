@@ -1,24 +1,19 @@
-const express = require('express'); 
-require('dotenv').config()
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const jwt = require("jsonwebtoken")
-const cors = require('cors'); 
+const express = require("express");
+require("dotenv").config();
+const { MongoClient, ServerApiVersion } = require("mongodb");
+const jwt = require("jsonwebtoken");
+const cors = require("cors");
 
-const app = express(); 
-const port = process.env.PORT || 5000; 
+const app = express();
+const port = process.env.PORT || 5000;
 
+// middleware
+app.use(express.json());
+app.use(cors());
 
-// middleware 
-app.use(express.json()); 
-app.use(cors()); 
-
-
-app.get('/', (req, res) => {
-
-    res.send("Life Ball Summer Camp is Running"); 
-})
-
-
+app.get("/", (req, res) => {
+  res.send("Life Ball Summer Camp is Running");
+});
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.iizb9vt.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -28,7 +23,7 @@ const client = new MongoClient(uri, {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
@@ -37,24 +32,32 @@ async function run() {
     await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    console.log(
+      "Pinged your deployment. You successfully connected to MongoDB!"
+    );
 
-    const classesCollection = client.db("lifeBall").collection('classes');
-    const instructorCollection = client.db('lifeBall').collection('instructors'); 
+    const classesCollection = client.db("lifeBall").collection("classes");
+    const instructorCollection = client
+      .db("lifeBall")
+      .collection("instructors");
 
-    app.get('/classes', async (req, res) => {
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign({ data: user }, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      res.send({token})
+    });
 
-        const result = await classesCollection.find().toArray(); 
-        res.send(result);
-    })
+    app.get("/classes", async (req, res) => {
+      const result = await classesCollection.find().toArray();
+      res.send(result);
+    });
 
-    app.get('/instructors', async (req, res) => {
-
-        const result = await instructorCollection.find().toArray(); 
-        res.send(result);
-    })
-    
-
+    app.get("/instructors", async (req, res) => {
+      const result = await instructorCollection.find().toArray();
+      res.send(result);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -62,8 +65,6 @@ async function run() {
 }
 run().catch(console.dir);
 
-
 app.listen(port, () => {
-
-    console.log(`Life Ball server is listening on the port ${port}.`);
-})
+  console.log(`Life Ball server is listening on the port ${port}.`);
+});
