@@ -40,10 +40,17 @@ async function run() {
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
 
     const classesCollection = client.db("lifeBall").collection('classes');
+    const instructorCollection = client.db('lifeBall').collection('instructors'); 
 
     app.get('/classes', async (req, res) => {
 
         const result = await classesCollection.find().toArray(); 
+        res.send(result);
+    })
+
+    app.get('/instructors', async (req, res) => {
+
+        const result = await instructorCollection.find().toArray(); 
         res.send(result);
     })
     
