@@ -18,7 +18,7 @@ app.get("/", (req, res) => {
 const verifyJWT = (req, res, next) => {
 
     const authorization = req.headers.authorization; 
-    console.log("authorization access token", authorization); 
+  
     if(!authorization){
       return res.status(401).send({error: true, message: "Unauthorized Access Request"})
     }
@@ -29,7 +29,7 @@ const verifyJWT = (req, res, next) => {
            return res.status(401).send({error: true, message: "Unauthorized Access. May be a problem with your token"})
         }
 
-       req.decoded = decoded; 
+       req.decoded = decoded.data; 
        next(); 
     })
 }
@@ -61,11 +61,26 @@ async function run() {
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
-      const token = jwt.sign({ data: user }, process.env.ACCESS_TOKEN_SECRET, {
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1h",
       });
       res.send({token})
     });
+
+    // verify Admin 
+    const verifyAdmin = async (req, res, next) => {
+        const user = req.decoded; 
+
+        const query = {email: user?.email}
+
+        const userFromDb = await userCollection.findOne(query); 
+      
+        if( await userFromDb?.role !== 'admin'){
+          res.status(403).send({error: true, message: "Forbidden Request"}); 
+          return;
+        }
+        next();
+    }
 
     app.get("/classes", async (req, res) => {
       const result = await classesCollection.find().toArray();
@@ -98,7 +113,7 @@ async function run() {
 
     })
 
-    app.patch('/update-role', async (req, res) => {
+    app.patch('/update-role',verifyJWT, verifyAdmin, async (req, res) => {
         const { role, _id } = req.body.reqData;
         const filter = {_id: new ObjectId(_id)}; 
         const updateDoc = {
