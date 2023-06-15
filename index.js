@@ -16,24 +16,28 @@ app.get("/", (req, res) => {
 });
 
 const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
 
-    const authorization = req.headers.authorization; 
-  
-    if(!authorization){
-      return res.status(401).send({error: true, message: "Unauthorized Access Request"})
+  if (!authorization) {
+    return res
+      .status(401)
+      .send({ error: true, message: "Unauthorized Access Request" });
+  }
+  const token = authorization.split(" ")[1];
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({
+        error: true,
+        message: "Unauthorized Access. May be a problem with your token",
+      });
     }
-    const token = authorization.split(" ")[1]; 
 
-    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        if(err){
-           return res.status(401).send({error: true, message: "Unauthorized Access. May be a problem with your token"})
-        }
- 
-       req.decoded = decoded; 
-     
-       next(); 
-    })
-}
+    req.decoded = decoded;
+
+    next();
+  });
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.iizb9vt.mongodb.net/?retryWrites=true&w=majority`;
 
@@ -57,31 +61,34 @@ async function run() {
     );
 
     const classesCollection = client.db("lifeBall").collection("classes");
-    const instructorCollection = client.db("lifeBall").collection("instructors");
-    const userCollection = client.db("lifeBall").collection('users'); 
+    const instructorCollection = client
+      .db("lifeBall")
+      .collection("instructors");
+    const userCollection = client.db("lifeBall").collection("users");
+    const cartCollection = client.db("lifeBall").collection("cart");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: "1h",
       });
-      res.send({token})
+      res.send({ token });
     });
 
-    // verify Admin 
+    // verify Admin
     const verifyAdmin = async (req, res, next) => {
-        const user = req.decoded; 
-  
-        const query = {email: user?.email}
+      const user = req.decoded;
 
-        const userFromDb = await userCollection.findOne(query); 
-     
-        if(userFromDb?.role !== 'admin'){
-          res.status(403).send({error: true, message: "Forbidden Request"}); 
-          return;
-        }
-        next();
-    }
+      const query = { email: user?.email };
+
+      const userFromDb = await userCollection.findOne(query);
+
+      if (userFromDb?.role !== "admin") {
+        res.status(403).send({ error: true, message: "Forbidden Request" });
+        return;
+      }
+      next();
+    };
 
     app.get("/classes", async (req, res) => {
       const result = await classesCollection.find().toArray();
@@ -92,53 +99,55 @@ async function run() {
       const result = await instructorCollection.find().toArray();
       res.send(result);
     });
-    // todo: verify for admin too. 
+    // todo: verify for admin too.
     app.get("/users", verifyJWT, async (req, res) => {
-
-      const result = await userCollection.find().toArray(); 
+      const result = await userCollection.find().toArray();
       res.send(result);
-    })
+    });
+    // todo: need to use verifyJWT. There was a problem in class btn disable when I used jwt verification
+    app.get("/find-role/:email", async (req, res) => {
+      const email = req.params.email;
 
-    app.get("/find-role/:email", verifyJWT, async (req, res) => {
-        const email = req.params.email; 
+      const query = { email: email };
+      const userData = await userCollection.findOne(query);
 
-        const query = {email: email}; 
-        const userData = await userCollection.findOne(query); 
-        const userRole = userData?.role || 'student'; 
-        res.send(userRole);
-    })
+      const userRole = userData?.role || "student";
 
-    app.post('/add-user', async (req, res) => {
+      res.send(userRole);
+    });
 
-        const newUser = req.body.newUser; 
-        const query = {email: newUser.email}
-        const existingUser = await userCollection.findOne(query); 
-        if(existingUser){
+    app.post("/add-user", async (req, res) => {
+      const newUser = req.body.newUser;
+      const query = { email: newUser.email };
+      const existingUser = await userCollection.findOne(query);
+      if (existingUser) {
+        return res.send({ message: "User Already Exist" });
+      }
 
-           return res.send({message: "User Already Exist"})
-        }
+      const result = await userCollection.insertOne(newUser);
+      res.send(result);
+    });
 
-        const result = await userCollection.insertOne(newUser); 
-        res.send(result);
+    app.post("/add-to-cart", verifyJWT, async (req, res) => {
+      const cartData = req.body;
+      const result = await cartCollection.insertOne(cartData);
+      res.send(result);
+    });
 
-    })
+    app.patch("/update-role", verifyJWT, verifyAdmin, async (req, res) => {
+      const { role, _id } = req.body.reqData;
+      console.log("Requested Data for role Change", { role, _id });
+      const filter = { _id: new ObjectId(_id) };
+      const updateDoc = {
+        $set: {
+          role: role,
+        },
+      };
 
-    app.patch('/update-role',verifyJWT, verifyAdmin, async (req, res) => {
-        const { role, _id } = req.body.reqData;
-        console.log("Requested Data for role Change", { role, _id })
-        const filter = {_id: new ObjectId(_id)}; 
-        const updateDoc = {
-          $set: {
-            role: role, 
-          }
-        }
-
-        const result = await userCollection.updateOne(filter, updateDoc)
-        console.log(result); 
-        res.send(result)
-
-
-    })
+      const result = await userCollection.updateOne(filter, updateDoc);
+      console.log(result);
+      res.send(result);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
