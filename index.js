@@ -115,6 +115,14 @@ async function run() {
 
       res.send(userRole);
     });
+    app.get("/cart-data", verifyJWT, async (req, res) => {
+      const email = req.decoded.email;
+      const query = { userEmail: email };
+
+      const result = await cartCollection.find(query).toArray();
+
+      res.send(result);
+    });
 
     app.post("/add-user", async (req, res) => {
       const newUser = req.body.newUser;
@@ -136,18 +144,32 @@ async function run() {
 
     app.patch("/update-role", verifyJWT, verifyAdmin, async (req, res) => {
       const { role, _id } = req.body.reqData;
-      console.log("Requested Data for role Change", { role, _id });
       const filter = { _id: new ObjectId(_id) };
       const updateDoc = {
         $set: {
           role: role,
         },
       };
-
       const result = await userCollection.updateOne(filter, updateDoc);
       console.log(result);
       res.send(result);
     });
+
+
+    
+    app.delete("/delete-cart-item/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await cartCollection.deleteOne(query);
+      res.send(result);
+    });
+
+
+
+
+
+
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
