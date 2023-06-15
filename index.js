@@ -28,8 +28,9 @@ const verifyJWT = (req, res, next) => {
         if(err){
            return res.status(401).send({error: true, message: "Unauthorized Access. May be a problem with your token"})
         }
-
-       req.decoded = decoded.data; 
+ 
+       req.decoded = decoded; 
+     
        next(); 
     })
 }
@@ -70,12 +71,12 @@ async function run() {
     // verify Admin 
     const verifyAdmin = async (req, res, next) => {
         const user = req.decoded; 
-
+  
         const query = {email: user?.email}
 
         const userFromDb = await userCollection.findOne(query); 
-      
-        if( await userFromDb?.role !== 'admin'){
+     
+        if(userFromDb?.role !== 'admin'){
           res.status(403).send({error: true, message: "Forbidden Request"}); 
           return;
         }
@@ -98,6 +99,15 @@ async function run() {
       res.send(result);
     })
 
+    app.get("/find-role/:email", verifyJWT, async (req, res) => {
+        const email = req.params.email; 
+
+        const query = {email: email}; 
+        const userData = await userCollection.findOne(query); 
+        const userRole = userData?.role || 'student'; 
+        res.send(userRole);
+    })
+
     app.post('/add-user', async (req, res) => {
 
         const newUser = req.body.newUser; 
@@ -115,6 +125,7 @@ async function run() {
 
     app.patch('/update-role',verifyJWT, verifyAdmin, async (req, res) => {
         const { role, _id } = req.body.reqData;
+        console.log("Requested Data for role Change", { role, _id })
         const filter = {_id: new ObjectId(_id)}; 
         const updateDoc = {
           $set: {
