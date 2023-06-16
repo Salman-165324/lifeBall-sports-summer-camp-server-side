@@ -11,6 +11,8 @@ const port = process.env.PORT || 5000;
 app.use(express.json());
 app.use(cors());
 
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); 
+
 app.get("/", (req, res) => {
   res.send("Life Ball Summer Camp is Running");
 });
@@ -156,7 +158,7 @@ async function run() {
     });
 
 
-    
+
     app.delete("/delete-cart-item/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -165,7 +167,22 @@ async function run() {
     });
 
 
+    app.post('/create-payment-intent', verifyJWT, async(req, res) =>{
+        const {totalPrice} = req.body; 
+        const amount = parseInt(totalPrice) * 100; 
 
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: amount, 
+            currency: "usd", 
+            payment_method_types: ["card"]
+
+        })
+
+        res.send({
+          clientSecret: paymentIntent.client_secret, 
+
+        })
+    })
 
 
 
