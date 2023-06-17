@@ -193,19 +193,46 @@ async function run() {
       };
       const deletedCartRes = await cartCollection.deleteMany(query);
 
+      const classesId = paymentData.orderedClassesId;
+      classesId.forEach(async (classId) => {
+        await classesCollection.updateOne(
+          {_id: new ObjectId(classId)}, 
+          {$inc: {availableSeats: -1}}
+        );
+      });
+
       res.send({ paymentInsertionRes, deletedCartRes });
     });
 
     app.get("/payment-history", verifyJWT, async (req, res) => {
-
-      const email = req.decoded.email; 
-      const query = {email: email};
-      const sort = {date: -1} 
-      const result = await paymentCollection.find().sort(sort).toArray(); 
+      const email = req.decoded.email;
+      const query = { email: email };
+      const sort = { date: -1 };
+      const result = await paymentCollection.find(query).sort(sort).toArray();
       res.send(result);
-
-      
     });
+
+    app.get("/enrolled-classes", verifyJWT, async (req, res) => {
+
+        const email = req.decoded.email; 
+
+        const paymentQuery = {email: email}; 
+        const payments = await paymentCollection.find(paymentQuery).toArray(); 
+        const orderedClassesId = Array.from(
+          new Set(payments.flatMap(payment => payment.orderedClassesId))
+        )
+        const classQuery = {
+          _id: {$in: orderedClassesId.map(classId => new ObjectId(classId))}
+        }
+
+        const classes = await classesCollection.find(classQuery).toArray(); 
+        res.send(classes); 
+
+
+    })
+
+
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
