@@ -11,7 +11,7 @@ const port = process.env.PORT || 5000;
 app.use(express.json());
 app.use(cors());
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); 
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 app.get("/", (req, res) => {
   res.send("Life Ball Summer Camp is Running");
@@ -68,6 +68,7 @@ async function run() {
       .collection("instructors");
     const userCollection = client.db("lifeBall").collection("users");
     const cartCollection = client.db("lifeBall").collection("cart");
+    const paymentCollection = client.db("lifeBall").collection("payments");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -157,8 +158,6 @@ async function run() {
       res.send(result);
     });
 
-
-
     app.delete("/delete-cart-item/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -166,27 +165,47 @@ async function run() {
       res.send(result);
     });
 
+    // payment Related Routes
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const { totalPrice } = req.body;
+      const amount = parseInt(totalPrice) * 100;
 
-    app.post('/create-payment-intent', verifyJWT, async(req, res) =>{
-        const {totalPrice} = req.body; 
-        const amount = parseInt(totalPrice) * 100; 
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
 
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: amount, 
-            currency: "usd", 
-            payment_method_types: ["card"]
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
 
-        })
+    app.post("/payments", verifyJWT, async (req, res) => {
+      const paymentData = req.body;
+      console.log(paymentData);
+      const paymentInsertionRes = await paymentCollection.insertOne(
+        paymentData
+      );
 
-        res.send({
-          clientSecret: paymentIntent.client_secret, 
+      const query = {
+        _id: { $in: paymentData.cartItemsId.map((id) => new ObjectId(id)) },
+      };
+      const deletedCartRes = await cartCollection.deleteMany(query);
 
-        })
-    })
+      res.send({ paymentInsertionRes, deletedCartRes });
+    });
 
+    app.get("/payment-history", verifyJWT, async (req, res) => {
 
+      const email = req.decoded.email; 
+      const query = {email: email};
+      const sort = {date: -1} 
+      const result = await paymentCollection.find().sort(sort).toArray(); 
+      res.send(result);
 
-
+      
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
