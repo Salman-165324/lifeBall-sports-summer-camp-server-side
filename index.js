@@ -93,6 +93,37 @@ async function run() {
       next();
     };
 
+    app.get("/popular-classes", async (req, res) => {
+      const popularClassesData = await paymentCollection
+        .aggregate([
+          {
+            $unwind: "$orderedClassesId",
+          },
+          {
+            $group: {
+              _id: "$orderedClassesId",
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $sort: { count: -1 },
+          },
+          {
+            $limit: 7,
+          },
+        ])
+        .toArray();
+
+     
+      const classIds = popularClassesData.map(
+        (popularClass) => new ObjectId(popularClass._id)
+      );
+
+      // Query the classes collection for the top 6 class details
+      const classQuery = { _id: { $in: classIds } };
+      const popularClasses = await classesCollection.find(classQuery).toArray();
+      res.send(popularClasses); 
+    });
     app.get("/classes", async (req, res) => {
       const result = await classesCollection.find().toArray();
       res.send(result);
@@ -196,8 +227,8 @@ async function run() {
       const classesId = paymentData.orderedClassesId;
       classesId.forEach(async (classId) => {
         await classesCollection.updateOne(
-          {_id: new ObjectId(classId)}, 
-          {$inc: {availableSeats: -1}}
+          { _id: new ObjectId(classId) },
+          { $inc: { availableSeats: -1 } }
         );
       });
 
@@ -213,26 +244,20 @@ async function run() {
     });
 
     app.get("/enrolled-classes", verifyJWT, async (req, res) => {
+      const email = req.decoded.email;
 
-        const email = req.decoded.email; 
+      const paymentQuery = { email: email };
+      const payments = await paymentCollection.find(paymentQuery).toArray();
+      const orderedClassesId = Array.from(
+        new Set(payments.flatMap((payment) => payment.orderedClassesId))
+      );
+      const classQuery = {
+        _id: { $in: orderedClassesId.map((classId) => new ObjectId(classId)) },
+      };
 
-        const paymentQuery = {email: email}; 
-        const payments = await paymentCollection.find(paymentQuery).toArray(); 
-        const orderedClassesId = Array.from(
-          new Set(payments.flatMap(payment => payment.orderedClassesId))
-        )
-        const classQuery = {
-          _id: {$in: orderedClassesId.map(classId => new ObjectId(classId))}
-        }
-
-        const classes = await classesCollection.find(classQuery).toArray(); 
-        res.send(classes); 
-
-
-    })
-
-
-
+      const classes = await classesCollection.find(classQuery).toArray();
+      res.send(classes);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
