@@ -1,17 +1,19 @@
-const express = require("express");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const express = require("express");
 const jwt = require("jsonwebtoken");
-const cors = require("cors");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const port = process.env.PORT || 5000;
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
-const port = process.env.PORT || 5000;
+const cors = require("cors");
 
 // middleware
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
 
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
+
 
 app.get("/", (req, res) => {
   res.send("Life Ball Summer Camp is Running");
@@ -141,10 +143,10 @@ async function run() {
     // todo: need to use verifyJWT. There was a problem in class btn disable when I used jwt verification
     app.get("/find-role/:email", async (req, res) => {
       const email = req.params.email;
-
+  
       const query = { email: email };
       const userData = await userCollection.findOne(query);
-
+     
       const userRole = userData?.role || "student";
 
       res.send(userRole);
@@ -189,8 +191,15 @@ async function run() {
       res.send(result);
     });
 
-    app.delete("/delete-cart-item/:id", async (req, res) => {
+    app.delete("/delete-cart-item/:id", verifyJWT, async (req, res) => {
+   
+      const userEmail = req.query.userEmail; 
+      if(req.decoded.email !== userEmail){
+
+         res.status(403).send({error:true, message: "Forbidden Request"})
+      }
       const id = req.params.id;
+      console.log(id);
       const query = { _id: new ObjectId(id) };
       const result = await cartCollection.deleteOne(query);
       res.send(result);
