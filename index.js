@@ -135,12 +135,11 @@ async function run() {
       const result = await instructorCollection.find().toArray();
       res.send(result);
     });
-    // todo: verify for admin too.
     app.get("/users", verifyJWT, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
-    // todo: need to use verifyJWT. There was a problem in class btn disable when I used jwt verification
+
     app.get("/find-role/:email", async (req, res) => {
       const email = req.params.email;
   
