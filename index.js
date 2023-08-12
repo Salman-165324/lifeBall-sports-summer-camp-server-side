@@ -57,7 +57,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
@@ -85,11 +85,11 @@ async function run() {
       const user = req.decoded;
 
       const query = { email: user?.email };
-
+      console.log("From admin verification,", user);
       const userFromDb = await userCollection.findOne(query);
 
       if (userFromDb?.role !== "admin") {
-        res.status(403).send({ error: true, message: "Forbidden Request" });
+        res.status(403).send({ error: true, message: "Forbidden Request. Not an admin" });
         return;
       }
       next();
@@ -126,6 +126,7 @@ async function run() {
       const popularClasses = await classesCollection.find(classQuery).toArray();
       res.send(popularClasses); 
     });
+
     app.get("/classes", async (req, res) => {
       const result = await classesCollection.find().toArray();
       res.send(result);
@@ -153,7 +154,7 @@ async function run() {
     app.get("/cart-data", verifyJWT, async (req, res) => {
       const email = req.decoded.email;
       const query = { userEmail: email };
-
+      console.log("hitted Email", email);
       const result = await cartCollection.find(query).toArray();
 
       res.send(result);
