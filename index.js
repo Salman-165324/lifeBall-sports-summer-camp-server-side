@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const port = process.env.PORT || 5000;
+// const port = process.env.PORT || 5000;
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
@@ -11,8 +11,6 @@ const cors = require("cors");
 // middleware
 app.use(cors());
 app.use(express.json());
-
-
 
 
 app.get("/", (req, res) => {
@@ -274,6 +272,7 @@ async function run() {
 }
 run().catch(console.dir);
 
-app.listen(port, () => {
+app.listen(3000, () => {
   console.log(`Life Ball server is listening on the port ${port}.`);
 });
+module.exports = app; 
