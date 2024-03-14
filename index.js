@@ -7,13 +7,11 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const cors = require("cors");
+const DbConnect = require("./config/dbConfig");
 
 // middleware
 app.use(cors());
 app.use(express.json());
-
-
-
 
 app.get("/", (req, res) => {
   res.send("Life Ball Summer Camp is Running");
@@ -43,34 +41,16 @@ const verifyJWT = (req, res, next) => {
   });
 };
 
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.iizb9vt.mongodb.net/?retryWrites=true&w=majority`;
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-});
-
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+ 
+    const db = await DbConnect();
 
-    const classesCollection = client.db("lifeBall").collection("classes");
-    const instructorCollection = client
-      .db("lifeBall")
-      .collection("instructors");
-    const userCollection = client.db("lifeBall").collection("users");
-    const cartCollection = client.db("lifeBall").collection("cart");
-    const paymentCollection = client.db("lifeBall").collection("payments");
+    const classesCollection = db.collection("classes");
+    const instructorCollection = db.collection("instructors");
+    const userCollection = db.collection("users");
+    const cartCollection = db.collection("cart");
+    const paymentCollection = db.collection("payments");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -89,7 +69,9 @@ async function run() {
       const userFromDb = await userCollection.findOne(query);
 
       if (userFromDb?.role !== "admin") {
-        res.status(403).send({ error: true, message: "Forbidden Request. Not an admin" });
+        res
+          .status(403)
+          .send({ error: true, message: "Forbidden Request. Not an admin" });
         return;
       }
       next();
@@ -116,7 +98,6 @@ async function run() {
         ])
         .toArray();
 
-     
       const classIds = popularClassesData.map(
         (popularClass) => new ObjectId(popularClass._id)
       );
@@ -124,7 +105,7 @@ async function run() {
       // Query the classes collection for the top 6 class details
       const classQuery = { _id: { $in: classIds } };
       const popularClasses = await classesCollection.find(classQuery).toArray();
-      res.send(popularClasses); 
+      res.send(popularClasses);
     });
 
     app.get("/classes", async (req, res) => {
@@ -143,10 +124,10 @@ async function run() {
 
     app.get("/find-role/:email", async (req, res) => {
       const email = req.params.email;
-  
+
       const query = { email: email };
       const userData = await userCollection.findOne(query);
-     
+
       const userRole = userData?.role || "student";
 
       res.send(userRole);
@@ -192,11 +173,9 @@ async function run() {
     });
 
     app.delete("/delete-cart-item/:id", verifyJWT, async (req, res) => {
-   
-      const userEmail = req.query.userEmail; 
-      if(req.decoded.email !== userEmail){
-
-         res.status(403).send({error:true, message: "Forbidden Request"})
+      const userEmail = req.query.userEmail;
+      if (req.decoded.email !== userEmail) {
+        res.status(403).send({ error: true, message: "Forbidden Request" });
       }
       const id = req.params.id;
       console.log(id);
@@ -277,3 +256,5 @@ run().catch(console.dir);
 app.listen(port, () => {
   console.log(`Life Ball server is listening on the port ${port}.`);
 });
+
+module.exports = app;
