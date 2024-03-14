@@ -246,6 +246,11 @@ async function run() {
       const classes = await classesCollection.find(classQuery).toArray();
       res.send(classes);
     });
+
+    app.listen(port, () => {
+      console.log(`Life Ball server is listening on the port ${port}.`);
+    });
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -253,8 +258,6 @@ async function run() {
 }
 run().catch(console.dir);
 
-app.listen(port, () => {
-  console.log(`Life Ball server is listening on the port ${port}.`);
-});
+
 
 module.exports = app;
