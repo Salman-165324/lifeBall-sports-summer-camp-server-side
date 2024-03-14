@@ -7,7 +7,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const cors = require("cors");
-const DbConnect = require("./config/dbConfig");
+const DbConnect = require("../config/dbConfig");
 
 // middleware
 app.use(cors());
