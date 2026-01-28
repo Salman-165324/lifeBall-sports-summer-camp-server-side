@@ -1,4 +1,9 @@
-require("dotenv").config();
+// Load environment variables from .env.local (or .env as fallback)
+require("dotenv").config({ path: '.env.local' });
+// Fallback to .env if .env.local doesn't exist or doesn't have the required vars
+if (!process.env.DB_USER && !process.env.DB_PASS) {
+  require("dotenv").config();
+}
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
